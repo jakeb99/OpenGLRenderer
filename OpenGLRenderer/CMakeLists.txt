@@ -5,6 +5,12 @@
 # Add source to this project's executable.
 add_executable (OpenGLRenderer "OpenGLRenderer.cpp" "OpenGLRenderer.h" "camera.h" "Shader.h" "ImGuiPanel.h" "ImGuiPanel.cpp" "AppState.h")
 
+add_custom_target(copy_shaders ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/shaders
+    ${CMAKE_CURRENT_BINARY_DIR}/shaders
+)
+
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET OpenGLRenderer PROPERTY CXX_STANDARD 20)
 endif()

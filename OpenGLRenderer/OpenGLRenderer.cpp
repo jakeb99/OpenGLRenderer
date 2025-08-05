@@ -47,12 +47,12 @@ int main()
 	initGLFWWindow();
 
 	Shader lightingShader(
-		"C:/Users/jbunt/source/repos/OpenGLRenderer/OpenGLRenderer/shaders/vShader_lighting.glsl", 
-		"C:/Users/jbunt/source/repos/OpenGLRenderer/OpenGLRenderer/shaders/fShader_material.glsl"
+		"shaders/vShader_lighting.glsl", 
+		"shaders/fShader_material.glsl"
 	);
 	Shader lightCubeShader(
-		"C:/Users/jbunt/source/repos/OpenGLRenderer/OpenGLRenderer/shaders/vShader_lighting.glsl", 
-		"C:/Users/jbunt/source/repos/OpenGLRenderer/OpenGLRenderer/shaders/fShader_lightcube.glsl"
+		"shaders/vShader_lighting.glsl", 
+		"shaders/fShader_lightcube.glsl"
 	);
 
 	// Set Up Cubes
@@ -320,7 +320,6 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 		}
 		else
 		{
-			std::cout << "reset" << std::endl;
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 		}
 	}
