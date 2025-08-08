@@ -2,6 +2,9 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #include <filesystem>
 
 #include "OpenGLRenderer.h"
@@ -20,6 +23,7 @@ void preRender();
 void renderGrid(Shader shader, glm::mat4 projection);
 void calcDeltaTime();
 ImGuiPanel setUpImGui();
+unsigned int loadTexture(char const* path, GLint texWrappingMode);
 
 const int SCR_WIDTH = 1920;
 const int SCR_HEIGHT = 1080;
@@ -40,65 +44,79 @@ float lastX = SCR_WIDTH / 2, lastY = SCR_HEIGHT / 2;		// init to center of scree
 bool firstMouse = true;
 static int rightMouseButtonState = GLFW_RELEASE;
 
-glm::vec3 lightPos(0.8f, 0.0f, 2.0f);
-
 int main()
 {
 	initGLFWWindow();
 
 	Shader lightingShader(
 		"shaders/vShader_lighting.glsl", 
-		"shaders/fShader_material.glsl"
+		"shaders/fs_material_casters_pointlight.glsl"
 	);
 	Shader lightCubeShader(
 		"shaders/vShader_lighting.glsl", 
 		"shaders/fShader_lightcube.glsl"
 	);
+	//Shader directionalLight(
+	//	"shaders/vShader_lighting.glsl",
+	//	"shaders/fs_material_map_dirlight.glsl"
+	//);
 
-	// Set Up Cubes
 	float vertices[] = {
-		// position			  // normal	
-		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
+		// positions          // normals           // texture coords
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
 
-		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-		 0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
 
-		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-		-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-		-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
 
-		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-		 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-		 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
 
-		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-		 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-		-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
 
-		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-		 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
+	};
+
+	glm::vec3 cubePositions[] = {
+		glm::vec3(0.0f,  0.0f,  0.0f),
+		glm::vec3(2.0f,  5.0f, -15.0f),
+		glm::vec3(-1.5f, -2.2f, -2.5f),
+		glm::vec3(-3.8f, -2.0f, -12.3f),
+		glm::vec3(2.4f, -0.4f, -3.5f),
+		glm::vec3(-1.7f,  3.0f, -7.5f),
+		glm::vec3(1.3f, -2.0f, -2.5f),
+		glm::vec3(1.5f,  2.0f, -2.5f),
+		glm::vec3(1.5f,  0.2f, -1.5f),
+		glm::vec3(-1.3f,  1.0f, -1.5f)
 	};
 
 	// create vbo and vaos - VBOs are like a container of all our vertex data stored directly in GPU memory. (instead of sending data from cpu tp gpu each frame, store it in gpu with a VBO)
@@ -113,12 +131,16 @@ int main()
 	glBindVertexArray(cubeVAO);
 
 	// position attribute
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
 	// normal attribute
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(1);
+
+	// texture attribute
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glEnableVertexAttribArray(2);
 
 	unsigned int lightCubeVAO;
 	glGenVertexArrays(1, &lightCubeVAO);
@@ -126,13 +148,23 @@ int main()
 
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
+
+	unsigned int diffuseMap = loadTexture("textures/container2.png", GL_REPEAT);
+	unsigned int specularMap = loadTexture("textures/container2_specular.png", GL_REPEAT);
+	unsigned int emissionMap = loadTexture("textures/matrix.jpg", GL_CLAMP_TO_BORDER);
 
 	GLuint gridVAO;
 	glGenVertexArrays(1, &gridVAO);
 
 	ImGuiPanel myimgui = setUpImGui();
+
+	lightingShader.use();
+	lightingShader.setInt("material.diffuse", 0);
+	lightingShader.setInt("material.specular", 1);
+	//lightingShader.setInt("material.emission", 2);
+	//lightingShader.setVec3("light.direction", -0.2f, -1.0f, -0.3f);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -140,28 +172,30 @@ int main()
 		handleInput(window);
 		preRender();
 
-		lightPos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
-		lightPos.y = sin(glfwGetTime() / 2.0f) * 1.0f;
+		//lightPos.x = 1.0f + sin(glfwGetTime()) * 2.0f;
+		//lightPos.y = sin(glfwGetTime() / 2.0f) * 1.0f;
 
 		lightCubeShader.use();
 		lightCubeShader.setVec3("lightColor", state.lightColor.x, state.lightColor.y, state.lightColor.z);
 
-		lightingShader.use();
-		//lightingShader.setVec3("objectColor",state.lightColor.x, state.lightColor.y, state.lightColor.z);	
-
-		lightingShader.setVec3("viewPos", camera.Position);
-		glm::vec3 lc = glm::vec3(state.lightColor.x, state.lightColor.y, state.lightColor.z);
-
-		lightingShader.setVec3("light.ambient", state.lightProps.ambient * lc * glm::vec3(0.5f));
-		lightingShader.setVec3("light.diffuse", state.lightProps.diffuse * lc * glm::vec3(0.2f));
-		lightingShader.setVec3("light.specular", state.lightProps.specular);
-
-		lightingShader.setVec3("material.ambient", state.material.ambient);
-		lightingShader.setVec3("material.diffuse", state.material.diffuse);
-		lightingShader.setVec3("material.specular", state.material.specular);
-
+		lightingShader.use();	
+		glm::vec3 lightPos = state.lightProps.position;
 		lightingShader.setVec3("light.position", lightPos);
+		//lightingShader.setVec3("light.direction", state.lightProps.direction);
+		lightingShader.setVec3("viewPos", camera.Position);
 
+		// light props
+		glm::vec3 lc = glm::vec3(state.lightColor.x, state.lightColor.y, state.lightColor.z);
+		lightingShader.setVec3("light.ambient", state.lightProps.ambient * glm::vec3(0.5f));
+		lightingShader.setVec3("light.diffuse", state.lightProps.diffuse * glm::vec3(0.2f));
+		lightingShader.setVec3("light.specular", state.lightProps.specular);
+		// light attenuation
+		lightingShader.setFloat("light.constant", 1.0f);
+		lightingShader.setFloat("light.linear", state.lightProps.linear);
+		lightingShader.setFloat("light.quadratic", state.lightProps.quadratic);
+
+		// material props
+		lightingShader.setVec3("material.specular", state.material.specular);
 		lightingShader.setFloat("material.shininess", state.material.shininess);
 
 		// create projeciton matrix, this rarely changes so it is actually best practice to set it outside of the render loop
@@ -175,8 +209,30 @@ int main()
 		glm::mat4 model = glm::mat4(1.0f);
 		lightingShader.setMat4("model", model);
 
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, diffuseMap); 
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, specularMap);
+
+		//glActiveTexture(GL_TEXTURE2);
+		//glBindTexture(GL_TEXTURE_2D, emissionMap);
+
 		glBindVertexArray(cubeVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		for (unsigned int i = 0; i < 10; i++)
+		{
+			glm::mat4 model = glm::mat4(1.0f);
+			model = glm::translate(model, cubePositions[i]);
+			float angle = 20.0f * i;
+			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+			lightingShader.setMat4("model", model);
+
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}
+
+		
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		// draw light cube
 		lightCubeShader.use();
@@ -272,7 +328,7 @@ void handleInput(GLFWwindow* window)
 
 void preRender()
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
@@ -342,4 +398,41 @@ void renderGrid(Shader gridShader, glm::mat4 projection)
 {
 	gridShader.use();
 	gridShader.setMat4("gVP", projection);
+}
+
+unsigned int loadTexture(char const* path, GLint texWrappingMode)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+
+	int width, height, nrComponents;
+	unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+	if (data)
+	{
+		GLenum format;
+		if (nrComponents == 1)
+			format = GL_RED;
+		else if (nrComponents == 3)
+			format = GL_RGB;
+		else if (nrComponents == 4)
+			format = GL_RGBA;
+
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, texWrappingMode);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, texWrappingMode);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		stbi_image_free(data);
+	}
+	else
+	{
+		std::cout << "Texture failed to load at path: " << path << std::endl;
+		stbi_image_free(data);
+	}
+
+	return textureID;
 }

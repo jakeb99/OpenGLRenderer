@@ -11,6 +11,12 @@ add_custom_target(copy_shaders ALL
     ${CMAKE_CURRENT_BINARY_DIR}/shaders
 )
 
+add_custom_target(copy_textures ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_CURRENT_SOURCE_DIR}/textures
+    ${CMAKE_CURRENT_BINARY_DIR}/textures
+)
+
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET OpenGLRenderer PROPERTY CXX_STANDARD 20)
 endif()
@@ -26,3 +32,6 @@ target_link_libraries(OpenGLRenderer PRIVATE glad::glad)
 
 find_package(glm CONFIG REQUIRED)
 target_link_libraries(OpenGLRenderer PRIVATE glm::glm-header-only)
+
+find_path(STB_INCLUDE_DIRS "stb_image.h")
+target_include_directories(OpenGLRenderer PRIVATE ${STB_INCLUDE_DIRS})
