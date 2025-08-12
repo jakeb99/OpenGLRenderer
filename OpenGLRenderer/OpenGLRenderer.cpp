@@ -50,7 +50,7 @@ int main()
 
 	Shader lightingShader(
 		"shaders/vShader_lighting.glsl", 
-		"shaders/fs_material_casters_pointlight.glsl"
+		"shaders/fs_material_casters_spotlight.glsl"
 	);
 	Shader lightCubeShader(
 		"shaders/vShader_lighting.glsl", 
@@ -119,8 +119,6 @@ int main()
 		glm::vec3(-1.3f,  1.0f, -1.5f)
 	};
 
-	// create vbo and vaos - VBOs are like a container of all our vertex data stored directly in GPU memory. (instead of sending data from cpu tp gpu each frame, store it in gpu with a VBO)
-	// VAOs are like a set of instructions that tells opengl how to use the VBO, what data is in them and how its laid out
 	unsigned int VBO, cubeVAO;
 	glGenVertexArrays(1, &cubeVAO);
 	glGenBuffers(1, &VBO);
@@ -163,8 +161,6 @@ int main()
 	lightingShader.use();
 	lightingShader.setInt("material.diffuse", 0);
 	lightingShader.setInt("material.specular", 1);
-	//lightingShader.setInt("material.emission", 2);
-	//lightingShader.setVec3("light.direction", -0.2f, -1.0f, -0.3f);
 
 	while (!glfwWindowShouldClose(window))
 	{
@@ -179,9 +175,12 @@ int main()
 		lightCubeShader.setVec3("lightColor", state.lightColor.x, state.lightColor.y, state.lightColor.z);
 
 		lightingShader.use();	
-		glm::vec3 lightPos = state.lightProps.position;
-		lightingShader.setVec3("light.position", lightPos);
-		//lightingShader.setVec3("light.direction", state.lightProps.direction);
+		lightingShader.setVec3("light.position", camera.Position);
+		lightingShader.setVec3("light.direction", camera.Front);
+		lightingShader.setFloat("light.intensity", state.lightProps.intensity);
+		lightingShader.setFloat("light.cutOff", glm::cos(glm::radians(state.lightProps.cutOff)));
+		lightingShader.setFloat("light.outerCutOff", glm::cos(glm::radians(state.lightProps.outerCutOff)));
+		lightingShader.use();
 		lightingShader.setVec3("viewPos", camera.Position);
 
 		// light props
@@ -233,18 +232,18 @@ int main()
 
 		
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
-
+		// positional light cube
 		// draw light cube
-		lightCubeShader.use();
-		lightCubeShader.setMat4("projection", projection);
-		lightCubeShader.setMat4("view", view);
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-		lightCubeShader.setMat4("model", model);
+		//lightCubeShader.use();
+		//lightCubeShader.setMat4("projection", projection);
+		//lightCubeShader.setMat4("view", view);
+		//model = glm::mat4(1.0f);
+		//model = glm::translate(model, lightPos);
+		//model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+		//lightCubeShader.setMat4("model", model);
 
-		glBindVertexArray(lightCubeVAO);
-		glDrawArrays(GL_TRIANGLES, 0, 36);
+		//glBindVertexArray(lightCubeVAO);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
 
 		// imgui stuff
 		myimgui.NewFrame();
