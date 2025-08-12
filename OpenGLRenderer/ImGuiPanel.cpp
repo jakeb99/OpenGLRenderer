@@ -59,6 +59,10 @@ void ImGuiPanel::Update()
 			state->lightProps.position = glm::vec3(1.2f, 1.0f, 2.0f);
 		}
 		ImGui::Dummy(ImVec2(0.0f, 20.0f));
+		ImGui::SliderFloat("Spotlight intensity", &state->lightProps.intensity, 1.0f, 100.0f, "%.1f");
+		ImGui::SliderFloat("Cut off", &state->lightProps.cutOff, 0.5f, 100.0f, "%.1f");
+		ImGui::SliderFloat("outer cut off", &state->lightProps.outerCutOff, 0.5f, 100.0f, "%.1f");
+		ImGui::Dummy(ImVec2(0.0f, 20.0f));
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 	} ImGui::End();
 }
